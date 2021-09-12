@@ -14,6 +14,7 @@ A simple encoder program for base64.
 - Allow executing encrypted binaries?
 - Double encode switch
 - Implement different encoders
+- Clean up argparser? Implement my own help message?
 - Of course we always need to look at making the code better.
 
 # Usage

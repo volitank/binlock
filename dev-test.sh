@@ -39,13 +39,13 @@ echo "#################################"
 echo "####encryption test complete#####"
 echo "####verify all the hashes match##"
 echo "#################################"
+sleep 5
 echo ""
 echo "#################################"
 echo "####starting the decrypt test####"
 echo "#################################"
 echo ""
 echo "output string should match the input string"
-
 
 ########STOP if there is any differences or any bugs
 #############we should try to fix them and restart
