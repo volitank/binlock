@@ -12,6 +12,9 @@ def enablePrint():
 # Enable Verbot equals true
 # vprint = PrintTools.PrintVerbose(True).vprint
 # vprint('Verbosity is now enabled!')
+def alwaysPrint(message):
+    sys.__stdout__.write(message+'\n')
+
 class PrintVerbose():
     def __init__(self, verbose):
         self.verbose = verbose

@@ -6,49 +6,66 @@ import os
 import PrintTools
 import Encrypter
 
-# Overwrite native error subclass
+# Define our custom help message
+prog = os.path.basename(sys.argv[0])
+help_message = "\
+usage: {0} [--options] [b64,b85,a85] [input_file] [-o output_file]\n\n\
+positional arguments:\n\
+  [b64, b85, a85]       choose which encoder to use.\n\
+  input_file            specify input file. If blank {0} will attempt to use stdin.\n\n\
+optional arguments:\n\
+  -h, --help            show this help message and exit\n\
+  -s, --stdout          supress all messages except for the encrypted/decrypted output. overrides output-file\n\
+  -o, --output-file     specify an output file. if ommited {0} will generate a filename.\n\
+  -v, --verbose         more verbose output\n\
+  --decode              switch to decoder. default is encoder\n\
+  --overwrite           this will overwrite the input file instead of creating a new file\n\
+  --debug               more output for debugging. --verbose is implied and will print even in --stdout mode\n\
+  --version             show program\'s version number and exit".format(prog)
+
+# Overwrite native error and help subclasses
 class BinlockParser(argparse.ArgumentParser):
 	def error(self, message):
 		sys.stderr.write('error: %s\n' % message)
 		self.print_help()
 		sys.exit(2)
 
+	def print_help(self, file=None):
+		if file is None:
+			file = sys.stdout
+		self._print_message(help_message+'\n', file)
+
 def main():
-	common = BinlockParser(add_help=False)
-	#common.add_argument("-t", "--test", help='switch for testing', action="store_true")
-	common.add_argument("-v", "--verbose", help='more verbose output', action="store_true")
-	common.add_argument("-d", "--debug", help='more output for debugging. --verbose is implied. Will print even in --stdout mode', action="store_true")
-
-	parser = BinlockParser(parents=[common])
-
-	subparsers = parser.add_subparsers(dest='module', help='[base64|aes] [encrypt|decrypt] [infile] [outfile]', metavar='[encryption_module]', required=True)
-	
-	common.add_argument("mode", choices=['encrypt', 'decrypt'], metavar='[encrypt|decrypt]', help='[infile] [outfile]')
-	common.add_argument('-s', '--stdout', help='supress all messages except for the encrypted/decrypted output.', action="store_true")
-	common.add_argument('-i', '--input-file', default=(None if sys.stdin.isatty() else sys.stdin))
-	common.add_argument('-o', '--output-file', default=None)
-
-	base65_parser = subparsers.add_parser("base64", parents=[common])
-	aes_parser = subparsers.add_parser("aes", parents=[common])
+	parser = BinlockParser(add_help=False)
+	# If I decide to keep custom help I'll edit this section
+	parser.add_argument(dest='module', metavar='[b64, b85, a85]', help='choose which encoder to use.', choices=['b64', 'b85', 'a85'])
+	parser.add_argument('-h', '--help', action="store_true")
+	parser.add_argument('-s', '--stdout', help='supress all messages except for the encrypted/decrypted output. overrides output-file', action="store_true")
+	parser.add_argument('input_file', help='specify input file. If blank %(prog)s will attempt to use stdin.', nargs='?', default=(None if sys.stdin.isatty() else sys.stdin))
+	parser.add_argument('-o', '--output-file', help='specify an output file. If not used %(prog)s will generate a filename.', default=None)
+	parser.add_argument("-v", "--verbose", help='more verbose output', action="store_true")
+	parser.add_argument('--decode', help='switch to decoder. default is encoder', action="store_true")
+	parser.add_argument('--overwrite', help='this will overwrite the input file instead of creating a new file', action="store_true")
+	parser.add_argument("--debug", help='more output for debugging. --verbose is implied and will print even in --stdout mode', action="store_true")
+	parser.add_argument('--version', action='version', version='%(prog)s v1.02')
 
 	argument = parser.parse_args()
 	module = argument.module
-	mode = argument.mode
+	decrypt = argument.decode
 	input = argument.input_file
 	output = argument.output_file
 	verbose = argument.verbose
 	std_out = argument.stdout
 	debug = argument.debug
+	overwrite = argument.overwrite
 	stdin = False
 	vprint = PrintTools.PrintVerbose(verbose).vprint
+	alwaysPrint = PrintTools.alwaysPrint
 
 	#Make sure there is input. If not error and print the proper module's --help.
 	if input is None:
-		vprint("error: no input detected")
-		if module == 'base64':
-			base65_parser.parse_args(['--help'])
-		elif module == 'aes':
-			aes_parser.parse_args(['--help'])
+		alwaysPrint("error: no input detected")
+		parser.parse_args(['--help'])
 		exit()
 	else:
 		if input != sys.stdin:
@@ -60,12 +77,13 @@ def main():
 	if std_out is True:
 		output = sys.stdout
 		PrintTools.blockPrint()
+
 	# If we are debug then we should print no matter what.
 	if debug is True:
 		vprint = PrintTools.PrintVerbose(True).vprint
 		PrintTools.enablePrint()
 
-	# FINISH THIS SECTION FOR DEBUGGING.
+	# Show passed arguments in debug mode.
 	vprint('verbose ebabled!')
 	if debug is True:
 		vprint("This is probably only going to be for debugging. Selected Args below!")
@@ -77,13 +95,18 @@ def main():
 	# If output isn't specified we need to make an output file.
 	if output is None:
 		vprint("no output detected. creating file name")
-		new_name = (module+'-'+mode)
-		if input == sys.stdin and module == 'base64':
-			output = (new_name+'.64')
-		elif input == sys.stdin and module == 'aes':
-			output = (new_name+'.aes')
+		if input == sys.stdin:
+			if decrypt is True:
+				output = ('stdin'+'.plain')
+			else:
+				output = ('stdin'+'.'+module)
 		else:
-			output = (input+'.64')
+			if decrypt is True:
+				output = (input+'.plain')
+			else:
+				output = (input+'.'+module)
+			if overwrite is True:
+				output = input
 
 	# Check if input is stdin
 	if input == sys.stdin:
@@ -101,10 +124,10 @@ def main():
 		vprint("output is --stdout")
 	else:
 		vprint("output file is {}".format(output))
-	
-	encrypt = Encrypter.Ignition(module, mode, input, output, verbose, stdin)
 
-	encrypt.processor64()
+	encrypt = Encrypter.Ignition(module, input, output, verbose, stdin, decrypt, overwrite)
+
+	encrypt.baseProcessor()
 
 	if std_out is True:
 		encrypt.write_stdout()

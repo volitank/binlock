@@ -1,6 +1,6 @@
 # binlock
 
-A simple encoder program for base64.
+A simple encoder program for base64, base85 and ascii85.
 
 # TODO
 
