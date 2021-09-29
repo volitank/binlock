@@ -192,12 +192,12 @@ if confirm "do you want to build for windows? You'll need sudo.." ; then
     # Make double sure that it is owned by root
     sudo chown root:root binlock_$ver${rev}_$arch-chroot
     # If our tar.gz doesn't exist we need to get it.
-    if find binlock-chroot.tar.gz2 ; then
-        echo "binlock-chroot.tar.gz2 exists"
+    if find binlock-chroot.tar.gz ; then
+        echo "binlock-chroot.tar.gz exists"
     else
-        echo "binlock-chroot.tar.gz2 not found. Downloading.."
-        wget placeholder-url || { echo "unable to download binlock-chroot.tar.gz2" ; exit 1; }
-        echo "binlock-chroot.tar.gz2 downloaded successfully"
+        echo "binlock-chroot.tar.gz not found. Downloading.."
+        wget https://github.com/volitank/binlock/releases/download/v1.03/binlock-chroot.tar.gz || { echo "unable to download binlock-chroot.tar.gz" ; exit 1; }
+        echo "binlock-chroot.tar.gz downloaded successfully"
     fi
     # Extract our build environment
     echo "unpacking windows build environment.."
