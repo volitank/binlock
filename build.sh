@@ -196,7 +196,7 @@ if confirm "do you want to build for windows? You'll need sudo.." ; then
         echo "binlock-chroot.tar.gz exists"
     else
         echo "binlock-chroot.tar.gz not found. Downloading.."
-        wget https://github.com/volitank/binlock/releases/download/v1.03/binlock-chroot.tar.gz || { echo "unable to download binlock-chroot.tar.gz" ; exit 1; }
+        wget https://github.com/volitank/binlock/releases/download/v1.03/binlock-chroot.tar.gz >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 || { echo "unable to download binlock-chroot.tar.gz" ; exit 1; }
         echo "binlock-chroot.tar.gz downloaded successfully"
     fi
     # Extract our build environment
