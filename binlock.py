@@ -2,6 +2,9 @@
 
 # This file is part of binlock.
 
+# binlock is a simple encoder program for base64, base85 and ascii85.
+# Copyright (C) 2021 Volitank
+
 # binlock is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -9,17 +12,17 @@
 
 # binlock is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with binlock. If not, see <https://www.gnu.org/licenses/>.
+# along with binlock.  If not, see <https://www.gnu.org/licenses/>.
 
-from sys import stdin, stdout, stderr, exit
-from os.path import exists
-from encoder import encode, write_bytes
 import logging
 import argparse
+from os.path import exists
+from encoder import encode, write_bytes
+from sys import stdin, stdout, stderr, exit
 
 # Overwrite native error and help subclasses
 class BinlockParser(argparse.ArgumentParser):

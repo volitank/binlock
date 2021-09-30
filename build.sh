@@ -12,7 +12,7 @@ confirm () {
 	while :
 	do
 		read -r -p "$1 [y/N] " response
-		response=${response,,}    # tolower
+		response=${response,,}
 		if [[ "$response" =~ ^(yes|y)$ ]]
 		then
 			printf "\nconfirmed\n"
