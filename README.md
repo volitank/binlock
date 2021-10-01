@@ -25,12 +25,15 @@ A simple encoder program for base64, base85 and ascii85.
 >or just download `binlock.py` and `encoder.py`. You don't need the rest
 
 `python3 binlock.py --help` or
+
 `/path/to/binlock.py --help` or
+
 `./binlock.py --help`
 
 **.deb:**
 
 `sudo dpkg -i binlock_ver-rev_arch.deb`
+
 `binlock --help`
 
 **AppImage:**
@@ -57,4 +60,5 @@ A simple encoder program for base64, base85 and ascii85.
 
 ****
 All binaries compiled with nuitka3
+
 Icon images were taken from [pixabay](https://pixabay.com/)
