@@ -2,7 +2,7 @@
 
 # This file is part of binlock.
 
-# binlock is a simple encoder program for base64, base85 and ascii85.
+# binlock is a simple encoding and encryption program.
 # Copyright (C) 2021 Volitank
 
 # binlock is free software: you can redistribute it and/or modify
@@ -19,10 +19,13 @@
 # along with binlock.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import hashlib
 import argparse
-from os.path import exists
-from encoder import encode, write_bytes
-from sys import stdin, stdout, stderr, exit
+from os import urandom
+from getpass import getpass
+from os.path import exists, basename
+from sys import stdin, stdout, stderr, argv, exit
+from bintools import encode, write_bytes, aes_decrypt, aes_encrypt, format_header, read_header, get_password
 
 # Overwrite native error and help subclasses
 class BinlockParser(argparse.ArgumentParser):
@@ -32,48 +35,84 @@ class BinlockParser(argparse.ArgumentParser):
 		exit(1) 
 
 def main():
+	bin_name = basename(argv[0])
 	formatter = lambda prog: argparse.HelpFormatter(prog,
 													max_help_position=64)
+
+	parent_parser = BinlockParser(	'parent',
+									formatter_class=formatter,
+									add_help=False)
+
+	global_option = parent_parser.add_argument_group('global options')
+
+	global_option.add_argument(	'-h', '--help', action='help', help='show this help message and exit')
+	global_option.add_argument(	"-v", "--verbose",
+								action="store_true",
+								help='more verbose output')
+
+	global_option.add_argument(	'-i', '--input',
+								metavar='FILENAME',
+								nargs='?',
+								default=(None if stdin.isatty() else stdin.buffer),
+								help=f'specify input file. If blank {bin_name} will attempt to use stdin. Takes priority over --stdin')
+
+	global_option.add_argument(	'-o', '--output',
+								metavar='FILENAME',
+								nargs='?',
+								default=stdout.buffer,
+								const=True,
+								help=f'specify an output file. If unused {bin_name} will generate a filename')
+
+	global_option.add_argument(	'--debug',
+								action="store_true",
+								help='more output for debugging. --verbose is implied.')
+	global_option.add_argument(	'--overwrite',
+								action="store_true",
+								help='this will overwrite the input file instead of creating a new file. cannot be used with standard input')
+
+	global_option.add_argument(	'--version',
+								action='version',
+								version=f'{bin_name} v1.04')
+
 	parser = BinlockParser(	formatter_class=formatter,
-							usage='%(prog)s [--options] [-e b64, b85, a85] [-i input] [-o output]')
-	parser.add_argument("-v", "--verbose",
-						action="store_true",
-						help='more verbose output')
+							parents=[parent_parser],
+							add_help=False,
+							usage=f'{bin_name} [--options] [-e b64, b85, a85] [-i input] [-o output]')
 
-	parser.add_argument('-e', '--encoder',
-						metavar='b64, b85, a85',
-						choices=['b64', 'b85', 'a85'],
-						nargs='?', default='b64',
-						help='choose which encoder to use.')
+	encoder_option = parser.add_argument_group('encoder options')
 
-	parser.add_argument('-i', '--input',
-						metavar='FILENAME',
-						nargs='?',
-						default=(None if stdin.isatty() else stdin.buffer),
-						help='specify input file. If blank %(prog)s will attempt to use stdin. Takes priority over --stdin')
+	encoder_option.add_argument('-e', '--encoder',
+								metavar='b64, b85, a85',
+								choices=['b64', 'b85', 'a85'],
+								nargs='?', default='b64',
+								help='choose which encoder to use.')
 
-	parser.add_argument('-o', '--output',
-						metavar='FILENAME',
-						nargs='?',
-						default=stdout.buffer,
-						const=True,
-						help='specify an output file. If unused %(prog)s will generate a filename')
+	encoder_option.add_argument('--decode',
+								action="store_true",
+								help='switch to decoder. default is encoder')
 
-	parser.add_argument('--decode',
-						action="store_true",
-						help='switch to decoder. default is encoder',)
+	subparsers = parser.add_subparsers(	title='crypt',
+										#description='This is the action for encryption and decryption',
+										metavar=f'{bin_name} crypt --help',
+										dest='crypt',
+										help='print help for the encryption sub module'
+										)
 
-	parser.add_argument('--overwrite',
-						action="store_true",
-						help='this will overwrite the input file instead of creating a new file. cannot be used with standard input')
+	parser_aes = subparsers.add_parser(	'crypt',
+										formatter_class=formatter,
+										usage=f'{bin_name} [crypt] [--options] [-i input] [-o output]',
+										add_help=False,
+										epilog=f'{bin_name} crypt currently only supports encryption with password.',
+										parents=[parent_parser])
 
-	parser.add_argument("--debug",
-						action="store_true",
-						help='more output for debugging. --verbose is implied and will print even in --stdout mode',)
+	crypt_option = parser_aes.add_argument_group('crypt options')
 
-	parser.add_argument('--version',
-						action='version',
-						version='%(prog)s v1.03')
+	crypt_option.add_argument(	'--decrypt',
+								action='store_true', 
+								help='switch to decryption. default is encryption')
+	crypt_option.add_argument(	'--dump-header',
+								action='store_true',
+								help='prints header information and exits')
 
 	argument = parser.parse_args()
 	encoder = argument.encoder
@@ -83,13 +122,15 @@ def main():
 	verbose = argument.verbose
 	debug = argument.debug
 	overwrite = argument.overwrite
+	crypt = argument.crypt
+	if crypt:
+		decrypt = argument.decrypt
+		dump = argument.dump_header
 
 	if debug:
 		logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.DEBUG, datefmt='[%Y-%m-%d %H:%M:%S]')
-		print('debug')
 	elif verbose:
 		logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=logging.INFO, datefmt='[%Y-%m-%d %H:%M:%S]')
-		print('verbose')
 	else:
 		logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='[%Y-%m-%d %H:%M:%S]')
 
@@ -121,24 +162,61 @@ def main():
 
 	# If output isn't specified we need to make an output file.
 	if overwrite is True:
-		output = True
-	if output is True:
-		vprint("no output detected. creating file name")
+		output = source
+	else:
+		if output is True:
+			if crypt:
+				file_extension = 'aes'
+			else:
+				file_extension = encoder
+			if decrypt:
+				file_extension = 'plain'
+			vprint("no output detected. creating file name")
+			if source == stdin.buffer:
+				output = ('stdin'+'.'+file_extension)
+			else:
+				output = (source+'.'+file_extension)
+
+	if crypt is None:
+		write_bytes(encode(source, encoder, decrypt), output)
+	if dump:
+		header = read_header(source, True)
 		if source == stdin.buffer:
-			if decrypt is True:
-				output =('stdin'+'.plain')
+			source = 'stdin'
+		print("binlock header information:\n")
+		print(f"[file = {source}]")
+		for name, value in header.items():
+			print(f"[{name} = {value}]")
+		exit(0)
+	else:
+		if decrypt:
+			salt, hash, aad, iv, tag = read_header(source)
+			password = getpass().encode()
+			if hash == hashlib.new('sha512', salt+password).digest():
+				print('password verified')
+				key = hashlib.pbkdf2_hmac('sha512', password, salt, 10000, 32)
+				del password
 			else:
-				output = ('stdin'+'.'+encoder)
+				print('incorrect password')
+				exit(1)
+			plain_text = aes_decrypt(source, key, iv, aad, tag)
+			write_bytes(plain_text, output)
 		else:
-			if decrypt is True:
-				output = (source+'.plain')
-			else:
-				output = (source+'.'+encoder)
-			if overwrite is True:
-				output = source
+			# Generate salt and iv
+			salt = urandom(32)
+			iv = urandom(16)
+			aad = urandom(16)
+			password = get_password()
+			hash = hashlib.new('sha512', salt+password).digest()
+			key = hashlib.pbkdf2_hmac('sha512', password, salt, 10000, 32)
+			# We want to remove password from memory as soon as we're done with it.
+			del password
 
-	#test = encode(source, encoder, decrypt)
+			#header = format_header(hash, salt, iv)
+			crypt_data, tag = aes_encrypt(source, key, iv, aad)
+			header = format_header(hash, salt, iv, aad, tag)
+			append_head = header+crypt_data
+			write_bytes(append_head, output)
 
-	write_bytes(encode(source, encoder, decrypt), output)
 if __name__ == "__main__":
 	main()

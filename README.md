@@ -1,17 +1,16 @@
 # binlock
 
-A simple encoder program for base64, base85 and ascii85.
+A simple encoding and encryption program.
 
 # TODO
 
-- Implement aes encryption.
->Make a switch to encrypt the entire filesystem.
->Make a switch to throw away the aes key.
+-Make a switch to encrypt the entire filesystem?
+-Make a switch to throw away the aes key?
 - Allow multiple input files.
 >Multiple inputs to multiple outputs?
 >Multiple inputs to a single output?
 - Allow executing encrypted binaries?
-- Double encode switch
+- Double encode switch?
 - Of course we always need to look at making the code better.
 
 # Installation and Usage

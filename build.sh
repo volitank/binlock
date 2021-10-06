@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define variables
-ver=1.03
-winver=0.1.0.3
+ver=1.04
+winver=0.1.0.4
 rev=-1
 arch=amd64
 deb_path="deb/binlock_$ver${rev}_$arch"
@@ -45,26 +45,29 @@ mkdir ../release && echo "created release"
 # Build linux binary
 echo "building linux binary..."
 #cp ../binlock.py ../Encoder.py ./
-if nuitka3 --follow-imports ../binlock.py -o binlock > /dev/null ; then
+if nuitka3 --follow-imports --assume-yes-for-downloads ../binlock.py -o binlock > /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
     echo "linux binary built"
 else
     echo "building linux binary failed"
+    echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
 	exit 1
 fi
 
 # Build AppImage
 echo "building AppImage... this might take a minute..."
-if nuitka3 --onefile --linux-onefile-icon=../icon/binlock.png --output-dir=./AppImage ../binlock.py > /dev/null ; then
+if nuitka3 --onefile --assume-yes-for-downloads --linux-onefile-icon=../icon/binlock.png --output-dir=./AppImage ../binlock.py >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
     echo "AppImage Built"
 else
     echo "building AppImage failed"
+    echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
 	exit 1
 fi
 
-if cp ./AppImage/binlock.bin ../release/binlock_$ver${rev}_$arch.AppImage > /dev/null ; then
+if cp ./AppImage/binlock.bin ../release/binlock_$ver${rev}_$arch.AppImage >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
     echo "AppImage copied to Release directory as binlock_$ver${rev}_$arch.AppImage"
 else
     echo "error: copying AppImage didn't work"
+    echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
 	exit 1
 fi
 
@@ -102,10 +105,11 @@ fi
 # We need to cd into deb
 echo "building binlock_$ver${rev}_$arch.deb"
 cd deb || { echo "unable to change directory" ; exit 1; }
-if dpkg-deb --build --root-owner-group binlock_$ver${rev}_$arch > /dev/null ; then
+if dpkg-deb --build --root-owner-group binlock_$ver${rev}_$arch >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
     echo "binlock_$ver${rev}_$arch.deb created successfully"
 else
     echo "failure creating binlock_$ver${rev}_$arch.deb"
+    echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
 	exit 1
 fi
 cd .. || { echo "unable to change directory" ; exit 1; }
@@ -169,11 +173,11 @@ fi
 
 # Make sure we're clean
 echo "making sure snap is clean.."
-snapcraft clean > /tmp/binlock_$ver${rev}_$arch.build 2>&1
+snapcraft clean >> /tmp/binlock_$ver${rev}_$arch.build 2>&1
 
 # Now we can build
 echo "starting automated snap build. This can take a VERY long time.."
-if snapcraft > /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
+if snapcraft >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
     echo "sucessfully built snap"
 else
     echo "unable to build snap"
@@ -196,12 +200,12 @@ if confirm "do you want to build for windows? You'll need sudo.." ; then
         echo "binlock-chroot.tar.gz exists"
     else
         echo "binlock-chroot.tar.gz not found. Downloading.."
-        wget https://github.com/volitank/binlock/releases/download/v1.03/binlock-chroot.tar.gz >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 || { echo "unable to download binlock-chroot.tar.gz" ; exit 1; }
+        wget https://github.com/volitank/binlock/releases/download/v1.03/binlock-chroot.tar.gz -q --show-progress --progress=bar:force 2>&1 | tee -a /tmp/binlock_$ver${rev}_$arch.build || { echo "unable to download binlock-chroot.tar.gz" ; exit 1; }
         echo "binlock-chroot.tar.gz downloaded successfully"
     fi
     # Extract our build environment
     echo "unpacking windows build environment.."
-    if sudo tar -xvf ../binlock-chroot.tar.gz --directory=binlock_$ver${rev}_$arch-chroot >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
+    if sudo tar -xvf ./binlock-chroot.tar.gz --directory=binlock_$ver${rev}_$arch-chroot >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
         echo "build environment unpacked successfully"
     else
         echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
