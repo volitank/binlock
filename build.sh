@@ -163,7 +163,7 @@ echo "    command: usr/bin/binlock"
 #echo "        - removable-media"
 echo "    environment:"
 echo '        PYTHONPATH: $SNAP/lib/x86_64-linux-gnu/:$SNAP/usr/lib/python3.9/:$PYTHONPATH'
-echo '        PYTHONHOME: $SNAP/lib/x86_64-linux-gnu/:$SNAP/usr/lib/python3.9/:$PYTHONHOME'	
+echo '        PYTHONHOME: $SNAP/lib/x86_64-linux-gnu/:$SNAP/usr/lib/python3.9/:$PYTHONHOME'
 } > snap/snapcraft.yaml ; then
     echo "created snapcraft.yaml"
 else
@@ -178,7 +178,7 @@ snapcraft clean >> /tmp/binlock_$ver${rev}_$arch.build 2>&1
 # Now we can build
 echo "starting automated snap build. This can take a VERY long time.."
 if snapcraft >> /tmp/binlock_$ver${rev}_$arch.build 2>&1 ; then
-    echo "sucessfully built snap"
+    echo "successfully built snap"
 else
     echo "unable to build snap"
 	echo "please check the log file: /tmp/binlock_$ver${rev}_$arch.build"
